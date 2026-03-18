@@ -10,7 +10,7 @@
     "test": "node --test test/**/*.test.js",
     "build": "tsc",
     "start": "node dist/app.js",
-    "dev": "node --watch src/app.js",
+    "dev": "tsx watch src/app.ts",
     "format": "prettier --write ."
   },
   "keywords": [],
