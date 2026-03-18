@@ -12,7 +12,7 @@
 - [x] Implement "3-strike" retry logic in `pinger.js` with backoff
 - [x] Add graceful shutdown handlers (`SIGTERM`/`SIGINT`) in `app.js`
 - [x] Ensure `fastify.close()` triggers DB persistence
-- [ ] Add health check route
+- [x] Add health check route
 
 ## Phase 3: API & Notifications [COMPLETED]
 - [x] Create GET `/api/stats` endpoint for 24h metrics
@@ -20,3 +20,15 @@
 - [x] Implement "Dummy Notifier" for testing (logs to console if no webhook)
 - [x] Create production-ready Dashboard UI with uptime visualization
 - [ ] Add Slack webhook support
+
+## Phase 4: Developer Experience & Quality [COMPLETED]
+- [x] Set up **Prettier** for automated code formatting
+- [x] Add `npm run format` script to `package.json`
+- [x] Format entire codebase with consistent rules
+- [x] Migrate core files to **TypeScript**
+- [ ] Set up GitHub Actions for automated testing/linting on push
+
+## Phase 5: Deployment & Infrastructure [IN PROGRESS]
+- [ ] Create `Dockerfile` for standardized deployment
+- [ ] Add structured logging for production (Pino JSON)
+- [ ] Implement `/health` endpoint for container health checks

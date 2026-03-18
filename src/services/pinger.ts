@@ -1,14 +1,23 @@
 import { request } from 'undici';
 
+export interface PingResult {
+  success: boolean;
+  url: string;
+  statusCode?: number;
+  responseTime: number;
+  error: string | null;
+  attempt: number;
+}
+
 /**
  * Pings a URL with retry logic.
- * @param {string} url - Target URL
- * @param {number} retries - Number of retries on failure (default 0)
- * @returns {Promise<Object>} Ping result
+ * @param url - Target URL
+ * @param retries - Number of retries on failure (default 0)
+ * @returns Ping result object
  */
-export async function ping(url, retries = 0) {
-  let lastResult;
-  
+export async function ping(url: string, retries: number = 0): Promise<PingResult> {
+  let lastResult: PingResult | undefined;
+
   for (let i = 0; i <= retries; i++) {
     const start = performance.now();
     try {
@@ -27,8 +36,7 @@ export async function ping(url, retries = 0) {
         error: statusCode >= 300 ? `Status code: ${statusCode}` : null,
         attempt: i + 1
       };
-
-    } catch (err) {
+    } catch (err: any) {
       const responseTime = Math.round(performance.now() - start);
       lastResult = {
         success: false,
@@ -41,12 +49,12 @@ export async function ping(url, retries = 0) {
 
     // If successful, stop retrying
     if (lastResult.success) return lastResult;
-    
+
     // If we have more retries, wait a bit before next attempt (backoff)
     if (i < retries) {
-      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
     }
   }
 
-  return lastResult;
+  return lastResult!;
 }

@@ -37,36 +37,40 @@ const start = async () => {
     });
 
     // 4. Set up ping job
-    const urls = fastify.config.URL_LIST.split(',').map(u => u.trim());
-    
+    const urls = fastify.config.URL_LIST.split(',').map((u) => u.trim());
+
     cron.schedule(fastify.config.PING_INTERVAL, async () => {
       const startTime = new Date().toISOString();
       fastify.log.info(`[${startTime}] Starting ping cycle for ${urls.length} URLs...`);
-      
-      await Promise.all(urls.map(async (url) => {
-        try {
-          // Use 2 retries (total 3 attempts) for reliability
-          const result = await ping(url, 2);
-          
-          // Record result in DB
-          await fastify.db.recordPing(result);
 
-          if (!result.success) {
-            const message = `🚨 HealthPing Alert [${new Date().toISOString()}]: ${url} is DOWN! Error: ${result.error} (after ${result.attempt} attempts)`;
-            fastify.log.warn(message);
-            await fastify.notify(message);
-          } else {
-            const retryInfo = result.attempt > 1 ? ` (recovered on attempt ${result.attempt})` : '';
-            fastify.log.info(`✅ ${url} is UP (${result.statusCode}) - ${result.responseTime}ms${retryInfo}`);
+      await Promise.all(
+        urls.map(async (url) => {
+          try {
+            // Use 2 retries (total 3 attempts) for reliability
+            const result = await ping(url, 2);
+
+            // Record result in DB
+            await fastify.db.recordPing(result);
+
+            if (!result.success) {
+              const message = `🚨 HealthPing Alert [${new Date().toISOString()}]: ${url} is DOWN! Error: ${result.error} (after ${result.attempt} attempts)`;
+              fastify.log.warn(message);
+              await fastify.notify(message);
+            } else {
+              const retryInfo = result.attempt > 1 ? ` (recovered on attempt ${result.attempt})` : '';
+              fastify.log.info(
+                `✅ ${url} is UP (${result.statusCode}) - ${result.responseTime}ms${retryInfo}`
+              );
+            }
+          } catch (err: any) {
+            fastify.log.error(`Unexpected error pinging ${url}: ${err.message}`);
           }
-        } catch (err) {
-          fastify.log.error(`Unexpected error pinging ${url}: ${err.message}`);
-        }
-      }));
+        })
+      );
     });
 
     // 5. Graceful Shutdown
-    const signals = ['SIGINT', 'SIGTERM'];
+    const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
     signals.forEach((signal) => {
       process.on(signal, async () => {
         fastify.log.info(`Received ${signal}, closing server...`);
@@ -74,7 +78,7 @@ const start = async () => {
           await fastify.close();
           fastify.log.info('Server closed gracefully');
           process.exit(0);
-        } catch (err) {
+        } catch (err: any) {
           fastify.log.error(`Error during graceful shutdown: ${err.message}`);
           process.exit(1);
         }

@@ -1,11 +1,13 @@
-export default async function (fastify, opts) {
+import { FastifyInstance } from 'fastify';
+
+export default async function (fastify: FastifyInstance, opts: any) {
   fastify.get('/status', async (request, reply) => {
     const status = fastify.db.getLatestStatus();
     const stats = fastify.db.getStats();
 
     // Merge stats with current status
-    const monitored = status.map(s => {
-      const urlStats = stats.find(st => st.url === s.url) || {};
+    const monitored = status.map((s: any) => {
+      const urlStats = stats.find((st: any) => st.url === s.url) || {};
       return {
         ...s,
         uptime_24h: urlStats.uptime || '0.00%',
@@ -13,10 +15,10 @@ export default async function (fastify, opts) {
       };
     });
 
-    return { 
+    return {
       service: 'HealthPing',
       timestamp: new Date().toISOString(),
-      monitored_urls: monitored 
+      monitored_urls: monitored
     };
   });
 

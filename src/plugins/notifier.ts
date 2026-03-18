@@ -1,8 +1,9 @@
 import fp from 'fastify-plugin';
 import { request } from 'undici';
+import { FastifyInstance } from 'fastify';
 
-async function notifierPlugin(fastify, opts) {
-  const notify = async (message) => {
+async function notifierPlugin(fastify: FastifyInstance, opts: any) {
+  const notify = async (message: string) => {
     const { DISCORD_WEBHOOK, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } = fastify.config;
     let sent = false;
 
@@ -16,7 +17,7 @@ async function notifierPlugin(fastify, opts) {
         });
         fastify.log.info('Discord alert sent.');
         sent = true;
-      } catch (err) {
+      } catch (err: any) {
         fastify.log.error(`Discord alert failed: ${err.message}`);
       }
     }
@@ -35,7 +36,7 @@ async function notifierPlugin(fastify, opts) {
         });
         fastify.log.info('Telegram alert sent.');
         sent = true;
-      } catch (err) {
+      } catch (err: any) {
         fastify.log.error(`Telegram alert failed: ${err.message}`);
       }
     }
@@ -48,6 +49,13 @@ async function notifierPlugin(fastify, opts) {
   };
 
   fastify.decorate('notify', notify);
+}
+
+// Typing for the decorated fastify instance
+declare module 'fastify' {
+  interface FastifyInstance {
+    notify: (message: string) => Promise<void>;
+  }
 }
 
 export default fp(notifierPlugin);
