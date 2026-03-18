@@ -8,9 +8,10 @@
 - [x] Add `getStats` for 24h uptime/latency calculations
 - [x] Update `/status` route with merged stats
 
-## Phase 2: Reliability
-- [ ] Implement retry logic in `pinger.js`
-- [ ] Add `fastify.addHook('onClose')` for DB cleanup
+## Phase 2: Reliability [COMPLETED]
+- [x] Implement "3-strike" retry logic in `pinger.js` with backoff
+- [x] Add graceful shutdown handlers (`SIGTERM`/`SIGINT`) in `app.js`
+- [x] Ensure `fastify.close()` triggers DB persistence
 - [ ] Add health check route
 
 ## Phase 3: API & Notifications

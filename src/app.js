@@ -45,16 +45,19 @@ const start = async () => {
       
       await Promise.all(urls.map(async (url) => {
         try {
-          const result = await ping(url);
+          // Use 2 retries (total 3 attempts) for reliability
+          const result = await ping(url, 2);
+          
           // Record result in DB
           await fastify.db.recordPing(result);
 
           if (!result.success) {
-            const message = `🚨 HealthPing Alert [${new Date().toISOString()}]: ${url} is DOWN! Error: ${result.error}`;
+            const message = `🚨 HealthPing Alert [${new Date().toISOString()}]: ${url} is DOWN! Error: ${result.error} (after ${result.attempt} attempts)`;
             fastify.log.warn(message);
             await fastify.notify(message);
           } else {
-            fastify.log.info(`✅ ${url} is UP (${result.statusCode}) - ${result.responseTime}ms`);
+            const retryInfo = result.attempt > 1 ? ` (recovered on attempt ${result.attempt})` : '';
+            fastify.log.info(`✅ ${url} is UP (${result.statusCode}) - ${result.responseTime}ms${retryInfo}`);
           }
         } catch (err) {
           fastify.log.error(`Unexpected error pinging ${url}: ${err.message}`);
@@ -62,7 +65,23 @@ const start = async () => {
       }));
     });
 
-    // 5. Start the server
+    // 5. Graceful Shutdown
+    const signals = ['SIGINT', 'SIGTERM'];
+    signals.forEach((signal) => {
+      process.on(signal, async () => {
+        fastify.log.info(`Received ${signal}, closing server...`);
+        try {
+          await fastify.close();
+          fastify.log.info('Server closed gracefully');
+          process.exit(0);
+        } catch (err) {
+          fastify.log.error(`Error during graceful shutdown: ${err.message}`);
+          process.exit(1);
+        }
+      });
+    });
+
+    // 6. Start the server
     await fastify.listen({ port: fastify.config.PORT, host: '0.0.0.0' });
   } catch (err) {
     fastify.log.error(err);
