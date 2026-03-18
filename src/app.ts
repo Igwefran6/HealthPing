@@ -36,7 +36,12 @@ const start = async () => {
       dir: path.join(__dirname, 'routes')
     });
 
-    // 4. Set up ping job
+    // 4. Health Check
+    fastify.get('/health', async () => {
+      return { status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() };
+    });
+
+    // 5. Set up ping job
     const urls = fastify.config.URL_LIST.split(',').map((u) => u.trim());
 
     cron.schedule(fastify.config.PING_INTERVAL, async () => {

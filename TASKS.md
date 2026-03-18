@@ -12,6 +12,7 @@
 - [x] Implement "3-strike" retry logic in `pinger.ts` with backoff
 - [x] Add graceful shutdown handlers (`SIGTERM`/`SIGINT`) in `app.ts`
 - [x] Ensure `fastify.close()` triggers DB persistence
+- [x] Add health check route
 
 ## Phase 3: API & Notifications [COMPLETED]
 - [x] Create GET `/api/stats` endpoint for 24h metrics
@@ -30,4 +31,4 @@
 - [x] Create `Dockerfile` for standardized deployment
 - [x] Add `.dockerignore` to optimize build context
 - [x] Add structured logging via Pino JSON (via Fastify default)
-- [ ] Implement custom `/health` endpoint for advanced container health checks
+- [x] Implement custom `/health` endpoint for advanced container health checks
