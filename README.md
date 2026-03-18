@@ -1,13 +1,15 @@
 # 🏥 HealthPing
 
-A lightweight, high-performance URL health monitoring service built with Node.js and Fastify.
+A lightweight, high-performance URL health monitoring service built with Node.js, Fastify, and SQLite.
 
 ## 🚀 Features
 
-- **Parallel Pinging**: Monitor multiple URLs simultaneously using `Promise.all`.
-- **Scheduled Checks**: Flexible scheduling with `node-cron`.
-- **Persistence**: Automatically records the last 1000 ping results (status, latency, errors) in a local `db.json` using `lowdb`.
-- **Latency Tracking**: Measures and logs response times in milliseconds.
+- **Parallel Pinging**: Monitor multiple URLs simultaneously using the native `fetch` API.
+- **Redirect Support**: Intelligent redirect following (3xx) to ensure accurate reachability reporting.
+- **Scheduled Checks**: Flexible scheduling with `node-cron` (default: every 1 minute).
+- **SQLite Persistence**: Reliable storage of ping results, latency, and errors using `sql.js`.
+- **24h Uptime Tracking**: Accurate uptime calculation and "Time Since Last Failure" metrics.
+- **Modern Dashboard**: A clean, responsive Inter-based UI for real-time monitoring.
 - **Discord & Telegram Alerts**: Real-time notifications for downtime.
 - **Lightweight**: Optimized for Termux/Android environments with zero native dependencies.
 
@@ -28,27 +30,30 @@ npm install
 Create a `.env` file in the root directory (use `.env.example` as a template):
 ```env
 PORT=3000
-PING_INTERVAL="*/5 * * * *"
+PING_INTERVAL="* * * * *"
 URL_LIST="https://google.com, https://github.com"
+# Optional Notifications
 DISCORD_WEBHOOK="your-webhook-url"
 TELEGRAM_BOT_TOKEN="your-bot-token"
 TELEGRAM_CHAT_ID="your-chat-id"
 ```
 
 ### 4. Running the App
-- **Development**: `npm run dev` (uses `--watch`)
-- **Production**: `npm start`
+- **Development**: `npm run dev` (uses `tsx watch`)
+- **Production**: `npm run build && npm start`
 - **Tests**: `npm test`
 
-## 📊 API Endpoints
+## 📊 Monitoring
 
-- `GET /`: Returns a JSON summary of the latest status, latency, and timestamps for all monitored URLs.
+- **Web Dashboard**: Access `http://localhost:3000/` to view the real-time status of all monitors.
+- **Status API**: `GET /status` returns a detailed JSON summary of the latest status, latency, and 24h metrics.
+- **Health Check**: `GET /health` for simple service uptime telemetry.
 
 ## 🗄️ Persistence
-HealthPing uses `lowdb` to maintain a local JSON database (`db.json`). This ensures that your uptime history and the latest statuses are preserved even if the service restarts.
+HealthPing uses `sql.js` to maintain a local SQLite database (`healthping.sqlite`). This ensures that your uptime history and the latest statuses are preserved across restarts with better performance than JSON-based storage.
 
 ## 🧪 Testing
-HealthPing uses the built-in Node.js test runner.
+HealthPing uses the built-in Node.js test runner with `tsx` for TypeScript support.
 ```bash
 npm test
 ```

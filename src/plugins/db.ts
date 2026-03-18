@@ -11,6 +11,7 @@ interface PingStats {
   successful: number;
   avgLatency: number;
   uptime: string;
+  lastFailureAt: string | null;
 }
 
 async function dbPlugin(fastify: FastifyInstance, opts: any) {
@@ -88,7 +89,8 @@ async function dbPlugin(fastify: FastifyInstance, opts: any) {
         url,
         COUNT(*) as total,
         SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful,
-        AVG(responseTime) as avgLatency
+        AVG(responseTime) as avgLatency,
+        MAX(CASE WHEN success = 0 THEN timestamp ELSE NULL END) as lastFailureAt
       FROM pings
       WHERE timestamp >= datetime('now', '-1 day')
       GROUP BY url
@@ -102,7 +104,11 @@ async function dbPlugin(fastify: FastifyInstance, opts: any) {
       columns.forEach((col, i) => {
         obj[col] = row[i];
       });
-      obj.uptime = ((obj.successful / obj.total) * 100).toFixed(2) + '%';
+      // Improved uptime: if we have no successful pings but total > 0, it's 0%
+      // If we just started, it might be misleading, but it's technically correct for the data we have.
+      obj.uptime = obj.total > 0 
+        ? ((obj.successful / obj.total) * 100).toFixed(2) + '%'
+        : '100.00%';
       return obj;
     });
   };

@@ -10,8 +10,9 @@ export default async function (fastify: FastifyInstance, opts: any) {
       const urlStats = stats.find((st: any) => st.url === s.url) || {};
       return {
         ...s,
-        uptime_24h: urlStats.uptime || '0.00%',
-        avg_latency_24h: Math.round(urlStats.avgLatency || 0) + 'ms'
+        uptime_24h: urlStats.uptime || '100.00%',
+        avg_latency_24h: Math.round(urlStats.avgLatency || 0) + 'ms',
+        last_failure_at: urlStats.lastFailureAt || null
       };
     });
 

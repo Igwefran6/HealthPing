@@ -285,6 +285,22 @@
     </div>
 
     <script>
+        function timeAgo(dateString) {
+            if (!dateString) return 'None';
+            // SQLite timestamp is in 'YYYY-MM-DD HH:MM:SS' format (UTC)
+            // Replace space with T to make it ISO-like
+            const date = new Date(dateString.replace(' ', 'T') + 'Z');
+            const now = new Date();
+            const seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 60) return 'Just now';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}m ago`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours}h ago`;
+            return date.toLocaleDateString();
+        }
+
         function formatUptime(uptimeStr) {
             return parseFloat(uptimeStr).toFixed(2);
         }
@@ -358,8 +374,10 @@
                                 </span>
                             </div>
                             <div class="stat-group" style="text-align: right;">
-                                <label>24h Latency</label>
-                                <span>${item.avg_latency_24h}</span>
+                                <label>Last Failure</label>
+                                <span style="color: ${item.last_failure_at ? 'var(--danger)' : 'var(--success)'}; font-size: 0.9rem;">
+                                    ${timeAgo(item.last_failure_at)}
+                                </span>
                             </div>
                         </div>
 
