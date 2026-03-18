@@ -14,9 +14,9 @@
 - [x] Ensure `fastify.close()` triggers DB persistence
 - [ ] Add health check route
 
-## Phase 3: API & Notifications [IN PROGRESS]
+## Phase 3: API & Notifications [COMPLETED]
 - [x] Create GET `/api/stats` endpoint for 24h metrics
 - [x] Add Discord/Telegram notification plugin with dummy fallback
 - [x] Implement "Dummy Notifier" for testing (logs to console if no webhook)
+- [x] Create production-ready Dashboard UI with uptime visualization
 - [ ] Add Slack webhook support
-- [ ] Create basic dashboard HTML to visualize `/api/stats`
