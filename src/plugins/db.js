@@ -1,45 +1,111 @@
 import fp from 'fastify-plugin';
-import { JSONFilePreset } from 'lowdb/node';
+import initSqlJs from 'sql.js';
+import fs from 'fs/promises';
+import path from 'path';
 
 async function dbPlugin(fastify, opts) {
-  // Initialize lowdb with a default structure
-  const defaultData = { pings: [] };
-  const db = await JSONFilePreset('db.json', defaultData);
+  const DB_PATH = path.join(process.cwd(), 'healthping.sqlite');
+  
+  // Load existing DB from file or create new
+  let dbBuffer;
+  try {
+    const data = await fs.readFile(DB_PATH);
+    dbBuffer = new Uint8Array(data);
+  } catch (err) {
+    dbBuffer = null;
+  }
+
+  const SQL = await initSqlJs();
+  const db = new SQL.Database(dbBuffer);
+
+  // Initialize Schema
+  db.run(`
+    CREATE TABLE IF NOT EXISTS pings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      url TEXT NOT NULL,
+      success INTEGER NOT NULL,
+      statusCode INTEGER,
+      error TEXT,
+      responseTime INTEGER,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Helper to save DB to file
+  const persist = async () => {
+    const data = db.export();
+    const buffer = Buffer.from(data);
+    await fs.writeFile(DB_PATH, buffer);
+  };
 
   // Helper to record a ping
   const recordPing = async (data) => {
     const { url, success, statusCode, error, responseTime } = data;
-    const newPing = {
-      url,
-      success,
-      statusCode,
-      error: error || null,
-      responseTime,
-      timestamp: new Date().toISOString()
-    };
-
-    // Keep only the last 1000 pings to prevent the file from growing indefinitely
-    db.data.pings.push(newPing);
-    if (db.data.pings.length > 1000) {
-      db.data.pings.shift();
-    }
     
-    await db.write();
+    db.run(
+      "INSERT INTO pings (url, success, statusCode, error, responseTime) VALUES (?, ?, ?, ?, ?)",
+      [url, success ? 1 : 0, statusCode || null, error || null, responseTime]
+    );
+
+    // Persist to file after each write (or we can debounce this for high-volume)
+    await persist();
   };
 
-  // Helper to get latest status
+  // Helper to get latest status (SQL is much cleaner for this!)
   const getLatestStatus = () => {
-    const latest = {};
-    // Group by URL and get the most recent result for each
-    [...db.data.pings].reverse().forEach(ping => {
-      if (!latest[ping.url]) {
-        latest[ping.url] = ping;
-      }
+    const res = db.exec(`
+      SELECT url, success, statusCode, error, responseTime, timestamp
+      FROM pings
+      WHERE id IN (SELECT MAX(id) FROM pings GROUP BY url)
+    `);
+    
+    if (res.length === 0) return [];
+    
+    const columns = res[0].columns;
+    return res[0].values.map(row => {
+      const obj = {};
+      columns.forEach((col, i) => {
+        obj[col] = row[i];
+      });
+      // Convert SQLite 1/0 back to boolean
+      obj.success = obj.success === 1;
+      return obj;
     });
-    return Object.values(latest);
   };
 
-  fastify.decorate('db', { recordPing, getLatestStatus, data: db.data });
+  // Helper for 24h stats
+  const getStats = () => {
+    const res = db.exec(`
+      SELECT 
+        url,
+        COUNT(*) as total,
+        SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful,
+        AVG(responseTime) as avgLatency
+      FROM pings
+      WHERE timestamp >= datetime('now', '-1 day')
+      GROUP BY url
+    `);
+
+    if (res.length === 0) return [];
+    
+    const columns = res[0].columns;
+    return res[0].values.map(row => {
+      const obj = {};
+      columns.forEach((col, i) => {
+        obj[col] = row[i];
+      });
+      obj.uptime = ((obj.successful / obj.total) * 100).toFixed(2) + '%';
+      return obj;
+    });
+  };
+
+  fastify.decorate('db', { recordPing, getLatestStatus, getStats });
+  
+  // Clean up on close
+  fastify.addHook('onClose', async () => {
+    await persist();
+    db.close();
+  });
 }
 
 export default fp(dbPlugin);
