@@ -1,0 +1,8 @@
+node_modules/
+.env
+db.json
+*.log
+.DS_Store
+dist/
+coverage/
+.gemini/
