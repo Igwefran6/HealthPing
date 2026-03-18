@@ -1,5 +1,3 @@
-import { request } from 'undici';
-
 export interface PingResult {
   success: boolean;
   url: string;
@@ -9,52 +7,59 @@ export interface PingResult {
   attempt: number;
 }
 
-/**
- * Pings a URL with retry logic.
- * @param url - Target URL
- * @param retries - Number of retries on failure (default 0)
- * @returns Ping result object
- */
-export async function ping(url: string, retries: number = 0): Promise<PingResult> {
-  let lastResult: PingResult | undefined;
+const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
+
+export async function ping(url: string, retries = 0): Promise<PingResult> {
+  let lastResult: PingResult = {
+    success: false,
+    url,
+    responseTime: 0,
+    error: 'No attempts made',
+    attempt: 0,
+  };
 
   for (let i = 0; i <= retries; i++) {
     const start = performance.now();
     try {
-      const { statusCode } = await request(url, {
-        method: 'GET',
-        headersTimeout: 5000,
-        bodyTimeout: 5000
+      const response = await fetch(url, {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(5000),
+        redirect: 'follow',
       });
 
       const responseTime = Math.round(performance.now() - start);
+      const statusCode = response.status;
+      const success = statusCode >= 200 && statusCode < 400;
+
       lastResult = {
-        success: statusCode >= 200 && statusCode < 300,
+        success,
         url,
         statusCode,
         responseTime,
-        error: statusCode >= 300 ? `Status code: ${statusCode}` : null,
-        attempt: i + 1
+        error: success ? null : `HTTP ${statusCode}`,
+        attempt: i + 1,
       };
     } catch (err: any) {
-      const responseTime = Math.round(performance.now() - start);
       lastResult = {
         success: false,
         url,
-        responseTime,
+        responseTime: Math.round(performance.now() - start),
         error: err.message,
-        attempt: i + 1
+        attempt: i + 1,
       };
     }
 
-    // If successful, stop retrying
     if (lastResult.success) return lastResult;
 
-    // If we have more retries, wait a bit before next attempt (backoff)
+    // Don't retry on non-retryable status codes
+    if (lastResult.statusCode && !RETRYABLE_STATUSES.has(lastResult.statusCode)) {
+      return lastResult;
+    }
+
     if (i < retries) {
       await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
     }
   }
 
-  return lastResult!;
+  return lastResult;
 }
