@@ -42,36 +42,47 @@ const start = async () => {
     });
 
     // 5. Set up ping job
-    const urls = fastify.config.URL_LIST.split(',').map((u) => u.trim());
+    const urls = fastify.config.URL_LIST.split(',').map((u) => u.trim()).filter(Boolean);
+    let pingCycleRunning = false;
 
-    cron.schedule(fastify.config.PING_INTERVAL, async () => {
+    const pingTask = cron.schedule(fastify.config.PING_INTERVAL, async () => {
+      if (pingCycleRunning) {
+        fastify.log.warn('Previous ping cycle is still running; skipping this run.');
+        return;
+      }
+
+      pingCycleRunning = true;
       const startTime = new Date().toISOString();
       fastify.log.info(`[${startTime}] Starting ping cycle for ${urls.length} URLs...`);
 
-      await Promise.all(
-        urls.map(async (url) => {
-          try {
-            // Use 2 retries (total 3 attempts) for reliability
-            const result = await ping(url, 2);
+      try {
+        await Promise.all(
+          urls.map(async (url) => {
+            try {
+              // Use 2 retries (total 3 attempts) for reliability
+              const result = await ping(url, 2);
 
-            // Record result in DB
-            await fastify.db.recordPing(result);
+              // Record result in DB
+              await fastify.db.recordPing(result);
 
-            if (!result.success) {
-              const message = `🚨 HealthPing Alert [${new Date().toISOString()}]: ${url} is DOWN! Error: ${result.error} (after ${result.attempt} attempts)`;
-              fastify.log.warn(message);
-              await fastify.notify(message);
-            } else {
-              const retryInfo = result.attempt > 1 ? ` (recovered on attempt ${result.attempt})` : '';
-              fastify.log.info(
-                `✅ ${url} is UP (${result.statusCode}) - ${result.responseTime}ms${retryInfo}`
-              );
+              if (!result.success) {
+                const message = `🚨 HealthPing Alert [${new Date().toISOString()}]: ${url} is DOWN! Error: ${result.error} (after ${result.attempt} attempts)`;
+                fastify.log.warn(message);
+                await fastify.notify(message);
+              } else {
+                const retryInfo = result.attempt > 1 ? ` (recovered on attempt ${result.attempt})` : '';
+                fastify.log.info(
+                  `✅ ${url} is UP (${result.statusCode}) - ${result.responseTime}ms${retryInfo}`
+                );
+              }
+            } catch (err: any) {
+              fastify.log.error(`Unexpected error pinging ${url}: ${err.message}`);
             }
-          } catch (err: any) {
-            fastify.log.error(`Unexpected error pinging ${url}: ${err.message}`);
-          }
-        })
-      );
+          })
+        );
+      } finally {
+        pingCycleRunning = false;
+      }
     });
 
     // 5. Graceful Shutdown
@@ -88,6 +99,10 @@ const start = async () => {
           process.exit(1);
         }
       });
+    });
+
+    fastify.addHook('onClose', async () => {
+      pingTask.stop();
     });
 
     // 6. Start the server

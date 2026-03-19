@@ -1,8 +1,13 @@
 import fp from 'fastify-plugin';
 import { request } from 'undici';
-import { FastifyInstance } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 
 async function notifierPlugin(fastify: FastifyInstance, opts: any) {
+  const ensureSuccess = (provider: string, statusCode: number) => {
+    if (statusCode >= 200 && statusCode < 300) return;
+    throw new Error(`${provider} returned HTTP ${statusCode}`);
+  };
+
   const notify = async (message: string) => {
     const { DISCORD_WEBHOOK, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } = fastify.config;
     let sent = false;
@@ -10,11 +15,12 @@ async function notifierPlugin(fastify: FastifyInstance, opts: any) {
     // Discord Integration
     if (DISCORD_WEBHOOK) {
       try {
-        await request(DISCORD_WEBHOOK, {
+        const response = await request(DISCORD_WEBHOOK, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ content: message })
         });
+        ensureSuccess('Discord', response.statusCode);
         fastify.log.info('Discord alert sent.');
         sent = true;
       } catch (err: any) {
@@ -26,7 +32,7 @@ async function notifierPlugin(fastify: FastifyInstance, opts: any) {
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
       try {
         const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-        await request(url, {
+        const response = await request(url, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
@@ -34,6 +40,7 @@ async function notifierPlugin(fastify: FastifyInstance, opts: any) {
             text: message
           })
         });
+        ensureSuccess('Telegram', response.statusCode);
         fastify.log.info('Telegram alert sent.');
         sent = true;
       } catch (err: any) {

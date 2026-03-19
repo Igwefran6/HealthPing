@@ -305,6 +305,23 @@
             return parseFloat(uptimeStr).toFixed(2);
         }
 
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        function safeHostname(url) {
+            try {
+                return new URL(url).hostname;
+            } catch {
+                return url;
+            }
+        }
+
         function getColor(uptime) {
             if (uptime >= 99.9) return 'var(--success)';
             if (uptime >= 98.0) return 'var(--warning)';
@@ -340,6 +357,9 @@
         async function fetchStatus() {
             try {
                 const res = await fetch('/status');
+                if (!res.ok) {
+                    throw new Error(`Status API returned ${res.status}`);
+                }
                 const data = await res.json();
                 
                 document.getElementById('loader').style.display = 'none';
@@ -358,8 +378,8 @@
                     card.innerHTML = `
                         <div class="card-header">
                             <div>
-                                <span class="service-name">${new URL(item.url).hostname}</span>
-                                <span class="service-url">${item.url}</span>
+                                <span class="service-name">${escapeHtml(safeHostname(item.url))}</span>
+                                <span class="service-url">${escapeHtml(item.url)}</span>
                             </div>
                             <span class="badge ${item.success ? 'up' : 'down'}">
                                 ${item.success ? 'OPERATIONAL' : 'OUTAGE'}
@@ -370,7 +390,7 @@
                             <div class="stat-group">
                                 <label>Response Time</label>
                                 <span style="color: ${item.responseTime > 500 ? 'var(--warning)' : 'var(--text-primary)'}">
-                                    ${item.responseTime}ms
+                                    ${escapeHtml(item.responseTime)}ms
                                 </span>
                             </div>
                             <div class="stat-group" style="text-align: right;">
@@ -383,7 +403,7 @@
 
                         ${!item.success ? `
                             <div class="error-banner">
-                                <span>⚠️</span> ${item.error}
+                                <span>⚠️</span> ${escapeHtml(item.error)}
                             </div>
                         ` : ''}
 
@@ -399,7 +419,7 @@
 
                         <div class="card-footer">
                             <span>Checked ${new Date(item.timestamp).toLocaleTimeString()}</span>
-                            <span>ID: ${item.id || 'N/A'}</span>
+                            <span>ID: ${escapeHtml(item.id || 'N/A')}</span>
                         </div>
                     `;
                     grid.appendChild(card);
@@ -407,6 +427,9 @@
 
             } catch (err) {
                 console.error(err);
+                const loader = document.getElementById('loader');
+                loader.textContent = `Unable to load status: ${err.message}`;
+                loader.style.color = 'var(--danger)';
             }
         }
 

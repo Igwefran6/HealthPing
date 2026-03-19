@@ -1,8 +1,8 @@
-import { test, describe, beforeEach } from 'node:test';
+import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import Fastify from 'fastify';
 import { MockAgent, setGlobalDispatcher } from 'undici';
-import notifierPlugin from '../src/plugins/notifier.js';
+import notifierPlugin from '../src/plugins/notifier.ts';
 
 const agent = new MockAgent();
 agent.disableNetConnect();
@@ -20,6 +20,12 @@ describe('Notifier Plugin', () => {
       TELEGRAM_CHAT_ID: 'chat456'
     });
     await fastify.register(notifierPlugin);
+  });
+
+  afterEach(async () => {
+    if (fastify) {
+      await fastify.close();
+    }
   });
 
   test('should send Discord notification when webhook is present', async () => {

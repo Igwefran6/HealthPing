@@ -2,7 +2,7 @@ import fp from 'fastify-plugin';
 import initSqlJs from 'sql.js';
 import fs from 'fs/promises';
 import path from 'path';
-import { FastifyInstance } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { PingResult } from '../services/pinger.js';
 
 interface PingStats {
@@ -16,6 +16,7 @@ interface PingStats {
 
 async function dbPlugin(fastify: FastifyInstance, opts: any) {
   const DB_PATH = path.join(process.cwd(), 'healthping.sqlite');
+  let writeQueue = Promise.resolve();
 
   // Load existing DB from file or create new
   let dbBuffer: Uint8Array | null = null;
@@ -46,7 +47,11 @@ async function dbPlugin(fastify: FastifyInstance, opts: any) {
   const persist = async () => {
     const data = db.export();
     const buffer = Buffer.from(data);
-    await fs.writeFile(DB_PATH, buffer);
+    const nextWrite = writeQueue.then(() => fs.writeFile(DB_PATH, buffer));
+    writeQueue = nextWrite.catch((err) => {
+      fastify.log.error(`Failed to persist SQLite database: ${err.message}`);
+    });
+    await nextWrite;
   };
 
   // Helper to record a ping
@@ -64,7 +69,7 @@ async function dbPlugin(fastify: FastifyInstance, opts: any) {
   // Helper to get latest status
   const getLatestStatus = () => {
     const res = db.exec(`
-      SELECT url, success, statusCode, error, responseTime, timestamp
+      SELECT id, url, success, statusCode, error, responseTime, timestamp
       FROM pings
       WHERE id IN (SELECT MAX(id) FROM pings GROUP BY url)
     `);
@@ -118,6 +123,7 @@ async function dbPlugin(fastify: FastifyInstance, opts: any) {
   // Clean up on close
   fastify.addHook('onClose', async () => {
     await persist();
+    await writeQueue;
     db.close();
   });
 }

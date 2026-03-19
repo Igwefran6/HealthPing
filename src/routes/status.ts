@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 
 export default async function (fastify: FastifyInstance, opts: any) {
   fastify.get('/status', async (request, reply) => {

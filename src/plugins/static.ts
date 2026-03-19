@@ -2,7 +2,7 @@ import fp from 'fastify-plugin';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { FastifyInstance } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
